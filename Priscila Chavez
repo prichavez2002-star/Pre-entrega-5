@@ -1,0 +1,152 @@
+-- Motor utilizado: MYSQL
+Create database if not exists Ventas_Tech_DB;
+use Ventas_Tech_DB;
+
+DROP TABLE IF EXISTS ventas;
+DROP TABLE IF EXISTS productos;
+DROP TABLE IF EXISTS clientes;
+DROP TABLE IF EXISTS categorias;
+DROP TABLE IF EXISTS territorios;
+
+
+--CREAR TABLAS
+CREATE TABLE categorias (
+	id_categoria INT PRIMARY KEY,
+	nombre_categoria VARCHAR(50) NOT NULL,
+	descripcion VARCHAR (200)
+);
+
+CREATE TABLE clientes (
+	id_cliente INT PRIMARY KEY,
+	nombre VARCHAR(100) NOT NULL,
+	email VARCHAR(100) UNIQUE,
+	ciudad VARCHAR(50),
+	fecha_registro DATE NOT NULL
+);
+
+CREATE TABLE productos (
+	id_producto INT PRIMARY KEY,
+	nombre_producto VARCHAR(100) NOT NULL,
+	id_categoria INT,
+	stock INT DEFAULT 0,
+	precio DECIMAL(10,2) NOT NULL,
+	activo BIT DEFAULT 1,
+	FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria)
+
+); 
+
+CREATE TABLE ventas (
+	id_venta INT PRIMARY KEY,
+	id_cliente INT,
+	id_producto INT,
+	fecha_venta DATE NOT NULL,
+	cantidad INT NOT NULL,
+	precio_unitario DECIMAL(10,2) NOT NULL,
+	FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+	FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+);
+
+
+INSERT INTO categorias (id_categoria, nombre_categoria, descripcion) VALUES
+(1, 'Laptops', 'Equipos portátiles para trabajo y gaming'),
+(2, 'Smartphones', 'Teléfonos inteligentes y accesorios directos'),
+(3, 'Audio', 'Auriculares, parlantes y micrófonos'),
+(4, 'Accesorios', 'Periféricos, cables, fundas y soportes');
+
+INSERT INTO clientes (id_cliente, nombre, email, ciudad, fecha_registro) VALUES
+(1, 'Ana Torres', 'ana.torres@email.com', 'Buenos Aires', '2024-01-10'),
+(2, 'Carlos Ruiz', 'carlos.ruiz@email.com', 'Córdoba', '2024-01-15'),
+(3, 'Lucía Gómez', 'lucia.gomez@email.com', 'Rosario', '2024-02-01'),
+(4, 'Marcos Paz', 'marcos.paz@email.com', 'Mendoza', '2024-02-20'),
+(5, 'Elena Vega', 'elena.vega@email.com', 'Buenos Aires', '2024-03-05');
+
+INSERT INTO productos (id_producto, nombre_producto, id_categoria, precio, stock, activo) VALUES
+(1, 'Laptop Pro 15', 1, 1200.00, 15, 1),
+(2, 'Laptop Air 13', 1, 950.00, 20, 1),
+(3, 'Phone Ultra', 2, 800.00, 30, 1),
+(4, 'Phone Lite', 2, 400.00, 25, 1),
+(5, 'Auriculares Wireless', 3, 150.00, 50, 1),
+(6, 'Teclado Mecánico', 4, 90.00, 40, 1);
+
+
+INSERT INTO ventas (id_venta, id_cliente, id_producto, fecha_venta, cantidad, precio_unitario) VALUES
+(1, 1, 1, '2024-03-01', 1, 1200.00),
+(2, 2, 3, '2024-03-02', 1, 800.00),
+(3, 3, 5, '2024-03-05', 2, 150.00),
+(4, 1, 6, '2024-03-10', 1, 90.00),
+(5, 4, 2, '2024-03-12', 1, 950.00),
+(6, 5, 4, '2024-03-15', 1, 400.00),
+(7, 2, 5, '2024-03-18', 1, 150.00),
+(8, 3, 1, '2024-03-20', 1, 1200.00),
+(9, 4, 6, '2024-03-22', 2, 90.00),
+(10, 5, 3, '2024-03-25', 1, 800.00);
+
+
+SELECT * FROM categorias;
+SELECT * FROM clientes;
+SELECT * FROM productos;
+SELECT * FROM ventas;
+
+-- Consulta 1: Vista base del proyecto (INNER JOIN)
+
+SELECT
+    v.id_venta,
+    v.fecha_venta,
+    c.id_cliente,
+    c.nombre AS cliente,
+    p.nombre_producto AS producto,
+    cat.nombre_categoria AS categoria,
+    v.cantidad,
+    v.precio_unitario,
+    v.cantidad * v.precio_unitario AS total_venta
+FROM ventas v
+INNER JOIN clientes c ON v.id_cliente  = c.id_cliente
+INNER JOIN productos p ON v.id_producto = p.id_producto
+INNER JOIN categorias cat ON p.id_categoria = cat.id_categoria
+ORDER BY v.fecha_venta, v.id_venta;
+
+-- Consulta 2: Clientes sin ventas (LEFT JOIN)
+
+SELECT
+    c.nombre AS cliente,
+    c.email,
+    c.fecha_registro
+FROM clientes c
+LEFT JOIN ventas v ON v.id_cliente = c.id_cliente
+WHERE v.id_cliente IS NULL;
+
+-- Consulta 3: Productos sin ventas (LEFT JOIN)
+
+SELECT
+    p.nombre_producto       AS producto,
+    cat.nombre_categoria    AS categoria,
+    p.precio
+FROM productos p
+INNER JOIN categorias cat ON p.id_categoria = cat.id_categoria
+LEFT JOIN ventas v ON v.id_producto = p.id_producto
+WHERE v.id_producto IS NULL;
+
+-- Consulta 4: Consolidado por canal (UNION ALL) 
+
+SELECT 
+    canal, 
+    SUM(total) AS total_canal
+FROM (
+
+    SELECT 
+        fecha_venta, 
+        (cantidad * precio_unitario) AS total, 
+        'Online' AS canal
+    FROM ventas
+    WHERE fecha_venta <= '2024-03-15'
+    UNION ALL
+    
+    SELECT 
+        fecha_venta, 
+        (cantidad * precio_unitario) AS total, 
+        'Presencial' AS canal
+    FROM ventas
+    WHERE fecha_venta > '2024-03-15'
+) AS consolidado
+GROUP BY canal;
+
